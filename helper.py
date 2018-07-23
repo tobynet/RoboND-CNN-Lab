@@ -1,4 +1,5 @@
 import pickle
+import gzip
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import LabelBinarizer
@@ -52,7 +53,6 @@ def display_stats(dataset_folder_path, sample_id):
     plt.axis('off')
     plt.imshow(sample_image.squeeze(), cmap = "gray")
 
-
 def _preprocess_and_save(normalize, one_hot_encode, features, labels, filename):
     """
     Preprocess data and save it to file
@@ -60,7 +60,8 @@ def _preprocess_and_save(normalize, one_hot_encode, features, labels, filename):
     features = normalize(features)
     labels = one_hot_encode(labels)
 
-    pickle.dump((features, labels), open(filename, 'wb'))
+    with gzip.open(filename, 'wb') as file:
+        pickle.dump((features, labels), file, pickle.HIGHEST_PROTOCOL)
 
 
 def preprocess_and_save_data(dataset_folder_path, normalize, one_hot_encode):
@@ -80,7 +81,7 @@ def preprocess_and_save_data(dataset_folder_path, normalize, one_hot_encode):
         one_hot_encode,
         train_features[:-validation_count],
         train_labels[:-validation_count],
-        'preprocess_train' + '.p')
+        'preprocess_train.p.gz')
 
     # Use a portion of training batch for validation
     valid_features.extend(train_features[-validation_count:])
@@ -92,7 +93,7 @@ def preprocess_and_save_data(dataset_folder_path, normalize, one_hot_encode):
         one_hot_encode,
         np.array(valid_features),
         np.array(valid_labels),
-        'preprocess_validation.p')
+        'preprocess_validation.p.gz')
 
 
     # Preprocess and Save all test data
@@ -101,7 +102,7 @@ def preprocess_and_save_data(dataset_folder_path, normalize, one_hot_encode):
         one_hot_encode,
         np.array(test_features),
         np.array(test_labels),
-        'preprocess_test.p')
+        'preprocess_test.p.gz')
 
 
 def batch_features_labels(features, labels, batch_size):
@@ -117,8 +118,9 @@ def load_preprocess_training_batch(batch_size):
     """
     Load the Preprocessed Training data and return them in batches of <batch_size> or less
     """
-    filename = 'preprocess_train' + '.p'
-    features, labels = pickle.load(open(filename, mode='rb'))
+    filename = 'preprocess_train' + '.p.gz'
+    with gzip.open(filename, mode='rb') as file:
+        features, labels  = pickle.load(file)
 
     # Return the training data in batches of size <batch_size> or less
     return batch_features_labels(features, labels, batch_size)
