@@ -104,7 +104,7 @@ tests.test_one_hot_encode(one_hot_encode)
 # ## Preprocess all the data and save it
 # Running the code cell below will preprocess all the Fashion-MNIST data and save it to file. The code below also uses 10% of the training data for validation.
 
-# In[5]:
+# In[6]:
 
 
 """
@@ -117,7 +117,7 @@ helper.preprocess_and_save_data(filename, normalize, one_hot_encode)
 # # Check Point
 # This is your first checkpoint.  If you ever decide to come back to this notebook or have to restart the notebook, you can start from here.  The preprocessed data has been saved to disk.
 
-# In[7]:
+# In[3]:
 
 
 """
@@ -156,7 +156,7 @@ with gzip.open('preprocess_validation.p.gz', mode='rb') as file:
 # 
 # Note: `None` for shapes in TensorFlow allow for a dynamic size.
 
-# In[15]:
+# In[4]:
 
 
 import tensorflow as tf
@@ -210,10 +210,10 @@ tests.test_nn_keep_prob_inputs(neural_net_keep_prob_input)
 # * Apply Max Pooling using `pool_ksize` and `pool_strides`.
 #  * We recommend you use same padding, but you're welcome to use any padding.
 
-# In[156]:
+# In[5]:
 
 
-def conv2d_maxpool(x_tensor, conv_num_outputs, conv_ksize, conv_strides, pool_ksize, pool_strides):
+def conv2d_maxpool(x_tensor, conv_num_outputs, conv_ksize, conv_strides, pool_ksize, pool_strides, name='conv'):
     """
     Apply convolution then max pooling to x_tensor
     :param x_tensor: TensorFlow Tensor
@@ -224,28 +224,27 @@ def conv2d_maxpool(x_tensor, conv_num_outputs, conv_ksize, conv_strides, pool_ks
     :param pool_strides: Stride 2-D Tuple for pool
     : return: A tensor that represents convolution and max pooling of x_tensor
     """
+    with tf.name_scope(name):
+        # Create weights and bias
+        input_depth = int(x_tensor.shape[3])
+        weights = tf.Variable(
+            tf.truncated_normal((*conv_ksize, input_depth, conv_num_outputs), stddev=0.1), name="W")
+        biases = tf.Variable(tf.constant(0.1, shape=[conv_num_outputs]), name="B")
+
+        # Conv2D layer + bias
+        layer = tf.nn.conv2d(x_tensor, weights, strides=(1, *conv_strides, 1), padding='SAME') + biases
+
+        # Nonlinear Activation Layer
+        layer = tf.nn.relu(layer)
+        
+        # Logging
+        tf.summary.histogram("weights", weights)
+        tf.summary.histogram("biases", biases)
+        tf.summary.histogram("activations", layer)
     
-    # Create weights and bias
-    input_depth = int(x_tensor.shape[3])
-    filter_weights = tf.Variable(tf.truncated_normal((*conv_ksize, input_depth, conv_num_outputs), stddev=0.01))
-    filter_bias = tf.Variable(tf.zeros(conv_num_outputs))
-    
-    # Conv2D layer + bias
-    layer = tf.nn.conv2d(x_tensor, 
-                         filter=filter_weights, 
-                         strides=(1, *conv_strides, 1), 
-                         padding='SAME')
-    layer = tf.nn.bias_add(layer, filter_bias)
-    
-    # Nonlinear Activation Layer
-    layer = tf.nn.relu(layer)
-    
-    # Max pooling layer
-    layer = tf.nn.max_pool(layer, 
-                           ksize=(1, *pool_ksize, 1), 
-                           strides=(1, *pool_strides, 1), 
-                           padding='SAME')
-    return layer
+        # Max pooling layer
+        layer = tf.nn.max_pool(layer, ksize=(1, *pool_ksize, 1),  strides=(1, *pool_strides, 1), padding='SAME')
+        return layer
 
 
 """
@@ -259,7 +258,7 @@ tests.test_con_pool(conv2d_maxpool)
 # 
 # Shortcut Option: you can use classes from the [TensorFlow Layers](https://www.tensorflow.org/api_docs/python/tf/layers) or [TensorFlow Layers (contrib)](https://www.tensorflow.org/api_guides/python/contrib.layers) packages for this layer which help with some high-level features. For more of a challenge, only use other TensorFlow packages.
 
-# In[106]:
+# In[6]:
 
 
 def flatten(x_tensor):
@@ -283,10 +282,10 @@ tests.test_flatten(flatten)
 # 
 # Shortcut option: you can use classes from the [TensorFlow Layers](https://www.tensorflow.org/api_docs/python/tf/layers) or [TensorFlow Layers (contrib)](https://www.tensorflow.org/api_guides/python/contrib.layers) packages for this layer. For more of a challenge, only use other TensorFlow packages.
 
-# In[107]:
+# In[7]:
 
 
-def fully_conn(x_tensor, num_outputs):
+def fully_conn(x_tensor, num_outputs, name='fully'):
     """
     Apply a fully connected layer to x_tensor using weight and bias
     : x_tensor: A 2-D tensor where the first dimension is batch size.
@@ -294,7 +293,20 @@ def fully_conn(x_tensor, num_outputs):
     : return: A 2-D tensor where the second dimension is num_outputs.
     """
     # DONE: Implement Function
-    return tf.contrib.layers.fully_connected(x_tensor, num_outputs)
+    #return tf.contrib.layers.fully_connected(x_tensor, num_outputs)
+    
+    with tf.name_scope(name):
+        weights = tf.Variable(tf.truncated_normal([int(x_tensor.shape[-1]), num_outputs], stddev=0.1), name="W")
+        biases = tf.Variable(tf.constant(0.1, shape=[num_outputs]), name="B")
+        
+        layer = x_tensor @ weights + biases
+        
+        # Logging
+        tf.summary.histogram("weights", weights)
+        tf.summary.histogram("biases", biases)
+        tf.summary.histogram("activations", layer)
+        
+        return layer
 
 
 """
@@ -310,7 +322,7 @@ tests.test_fully_conn(fully_conn)
 # 
 # **Note:** Activation, softmax, or cross entropy should **not** be applied to this.
 
-# In[108]:
+# In[9]:
 
 
 
@@ -322,7 +334,8 @@ def output(x_tensor, num_outputs):
     : return: A 2-D tensor where the second dimension is num_outputs.
     """
     # DONE: Implement Function
-    return tf.contrib.layers.fully_connected(x_tensor, num_outputs)
+    #return tf.contrib.layers.fully_connected(x_tensor, num_outputs)
+    return fully_conn(x_tensor, num_outputs, 'output')
 
 
 """
@@ -341,42 +354,51 @@ tests.test_output(output)
 # * Return the output
 # * Apply [TensorFlow's Dropout](https://www.tensorflow.org/api_docs/python/tf/nn/dropout) to one or more layers in the model using `keep_prob`. 
 
-# In[152]:
+# In[10]:
 
 
-def conv_net(x, keep_prob):
+def conv_net(x, keep_prob, use_two_conv=False, use_two_fully=True):
     """
     Create a convolutional neural network model
     : x: Placeholder tensor that holds image data.
     : keep_prob: Placeholder tensor that hold dropout keep probability.
     : return: Tensor that represents logits
     """
-    # TODO: Apply 1, 2, or 3 Convolution and Max Pool layers
+    # DONE: Apply 1, 2, or 3 Convolution and Max Pool layers
     #    Play around with different number of outputs, kernel size and stride
     # Function Definition from Above:
     #    conv2d_maxpool(x_tensor, conv_num_outputs, conv_ksize, conv_strides, pool_ksize, pool_strides)
-    conv_k = 3; conv_stride = 2; pool_k = 2
-    layer = conv2d_maxpool(x, conv_num_outputs=10,
+    #conv_k = 3; conv_stride = 2; pool_k = 2
+    conv_k = 5; conv_stride = 1; pool_k = 2
+    if use_two_conv:
+        layer = conv2d_maxpool(x, conv_num_outputs=32,
                            conv_ksize=(conv_k, conv_k), conv_strides=(conv_stride, conv_stride),
-                           pool_ksize=(pool_k, pool_k), pool_strides=(pool_k, pool_k))
-#     layer = conv2d_maxpool(layer, conv_num_outputs=20,
-#                            conv_ksize=(conv_k, conv_k), conv_strides=(conv_stride, conv_stride),
-#                            pool_ksize=(pool_k, pool_k), pool_strides=(pool_k, pool_k))
-    # todo: 増やすか
-    
+                           pool_ksize=(pool_k, pool_k), pool_strides=(pool_k, pool_k),
+                           name='conv1')
+        layer = conv2d_maxpool(layer, conv_num_outputs=64,
+                           conv_ksize=(conv_k, conv_k), conv_strides=(conv_stride, conv_stride),
+                           pool_ksize=(pool_k, pool_k), pool_strides=(pool_k, pool_k),
+                           name='conv2')
+    else:
+        layer = conv2d_maxpool(x, conv_num_outputs=16,
+                               conv_ksize=(conv_k, conv_k), conv_strides=(conv_stride, conv_stride),
+                               pool_ksize=(pool_k, pool_k), pool_strides=(pool_k, pool_k),
+                               name='conv')    
     # DONE: Apply a Flatten Layer
     # Function Definition from Above:
     #   flatten(x_tensor)
     layer = flatten(layer)
     
-    # TODO: Apply 1, 2, or 3 Fully Connected Layers
+    # DONE: Apply 1, 2, or 3 Fully Connected Layers
     #    Play around with different number of outputs
     # Function Definition from Above:
     #   fully_conn(x_tensor, num_outputs)
-    layer = fully_conn(layer, num_outputs=10)
-    layer = tf.nn.dropout(layer, keep_prob)
-    # todo: 増やすか
-    
+    if use_two_fully:
+        layer = fully_conn(layer, num_outputs=1024, name='fully1')
+        layer = tf.nn.relu(layer)
+        tf.summary.histogram("fully1/relu", layer)
+        layer = tf.nn.dropout(layer, keep_prob)
+        
     # DONE: Apply an Output Layer
     #    Set this to the number of classes
     # Function Definition from Above:
@@ -395,28 +417,41 @@ DON'T MODIFY ANYTHING IN THIS CELL THAT IS BELOW THIS LINE
 ## Build the Neural Network ##
 ##############################
 
-# Remove previous weights, bias, inputs, etc..
-tf.reset_default_graph()
+def build_network(learning_rate, use_two_conv, use_two_fully):
+    global x, y, keep_prob, logits, cost, optimizer, accuracy, summ
+    
+    # Remove previous weights, bias, inputs, etc..
+    tf.reset_default_graph()
 
-# Inputs
-x = neural_net_image_input((28, 28, 1))
-y = neural_net_label_input(10)
-keep_prob = neural_net_keep_prob_input()
+    # Inputs
+    x = neural_net_image_input((28, 28, 1))
+    tf.summary.image('input', x, 3)
+    y = neural_net_label_input(10)
+    keep_prob = neural_net_keep_prob_input()
 
-# Model
-logits = conv_net(x, keep_prob)
+    # Model
+    logits = conv_net(x, keep_prob, use_two_conv, use_two_fully)
 
-# Name logits Tensor, so that is can be loaded from disk after training
-logits = tf.identity(logits, name='logits')
+    # Name logits Tensor, so that is can be loaded from disk after training
+    logits = tf.identity(logits, name='logits')
 
-# Loss and Optimizer
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y))
-optimizer = tf.train.AdamOptimizer().minimize(cost)
+    # Loss and Optimizer
+    with tf.name_scope('cost-func'):
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y), name='cost')
+        tf.summary.scalar('cost', cost)
 
-# Accuracy
-correct_pred = tf.equal(tf.argmax(logits, 1), tf.argmax(y, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32), name='accuracy')
+    with tf.name_scope('train'):
+        optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
 
+    # Accuracy
+    with tf.name_scope('accuracy'):
+        correct_pred = tf.equal(tf.argmax(logits, 1), tf.argmax(y, 1))
+        accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32), name='accuracy')
+        tf.summary.scalar("accuracy", accuracy)
+
+    summ = tf.summary.merge_all()
+
+build_network(0.001,False,True)
 tests.test_conv_net(conv_net)
 
 
@@ -433,7 +468,7 @@ tests.test_conv_net(conv_net)
 # 
 # Note: Nothing needs to be returned. This function is only optimizing the neural network.
 
-# In[110]:
+# In[11]:
 
 
 
@@ -465,7 +500,7 @@ tests.test_train_nn(train_neural_network)
 # 
 # Hint: You can refer to the "Convolutional Network in TensorFlow" section in the lesson.
 
-# In[111]:
+# In[12]:
 
 
 def print_stats(session, feature_batch, label_batch, cost, accuracy):
@@ -489,7 +524,7 @@ def print_stats(session, feature_batch, label_batch, cost, accuracy):
         keep_prob: 1.0
     })
     
-    # TODO: Print loss and validation accuracy
+    # DONE: Print loss and validation accuracy
     print(' Loss: {:>10.4f}    Validation Accuracy: {:.6f}'.format(loss, validation_accuracy))
 
 
@@ -513,24 +548,31 @@ def print_stats(session, feature_batch, label_batch, cost, accuracy):
 #   * Add more layers, dropouts
 #   * Tune Hyperparameters
 
-# In[154]:
+# In[13]:
 
 
-# TODO: Tune Parameters
-epochs = 10
-#batch_size = 64
-#batch_size = 256
-batch_size = 1024
-keep_probability = 0.8
+# DONE: Tune Parameters
+#epochs = 100; batch_size = 64; keep_probability = 1.0 #  0.798500
+epochs = 100; batch_size = 100; keep_probability = 1.0 
+
+
+LOGDIR = 'log/'
+log_filename = None
+SAVE_MODEL = 'save_model/'
+
+def param_string(learning_rate, use_two_conv, use_two_fully):
+    conv_num = {False:1, True:2}[use_two_conv]
+    fully_num = {False:1, True:2}[use_two_fully]
+    return 'lrate={}_conv={}_fully={}'.format(learning_rate, conv_num, fully_num)
 
 
 # ### Train the Model
 # Now that you have your model built and your hyperparameters defined, let's train it!
 
-# In[157]:
+# In[14]:
 
 
-get_ipython().run_cell_magic('time', '', '"""\nDON\'T MODIFY ANYTHING IN THIS CELL\n"""\nsave_model_path = \'./image_classification\'\n\nwith tf.Session() as sess:\n    # Initializing the variables\n    sess.run(tf.global_variables_initializer())\n    \n    # Training cycle\n    for epoch in range(epochs):\n        for batch_features, batch_labels in helper.load_preprocess_training_batch(batch_size):\n            train_neural_network(sess, optimizer, keep_probability, batch_features, batch_labels)\n        print(\'Epoch {:>2}:  \'.format(epoch + 1), end=\'\')\n        print_stats(sess, batch_features, batch_labels, cost, accuracy)\n            \n    # Save Model\n    saver = tf.train.Saver()\n    save_path = saver.save(sess, save_model_path)')
+get_ipython().run_cell_magic('time', '', 'import os.path\n"""\nDON\'T MODIFY ANYTHING IN THIS CELL\n"""\ndef train(learning_rate, use_two_conv, use_two_fully, log_filename):\n    build_network(learning_rate, use_two_conv, use_two_fully)\n    \n    #with tf.Session(config=tf.ConfigProto(device_count = {\'GPU\': 0})) as sess:\n    with tf.Session() as sess:\n        # Initializing the variables\n        sess.run(tf.global_variables_initializer())\n\n        save_model_path = os.path.join(SAVE_MODEL, \'image_classification_\' + log_filename)\n\n        writer = tf.summary.FileWriter(os.path.join(LOGDIR, log_filename))\n        writer.add_graph(sess.graph)\n\n        saver = tf.train.Saver()\n\n        # Training cycle\n        for epoch in range(epochs):\n            for batch_features, batch_labels in helper.load_preprocess_training_batch(batch_size):\n                train_neural_network(sess, optimizer, keep_probability, batch_features, batch_labels)\n            print(\'  Epoch {:>2}:  \'.format(epoch + 1), end=\'\')\n            print_stats(sess, batch_features, batch_labels, cost, accuracy)\n\n            if epoch % 5 == 0:\n                [train_accuracy, s] = sess.run([accuracy, summ], feed_dict={x:batch_features, y: batch_labels, keep_prob: 1.0})\n                writer.add_summary(s, epoch)\n\n#             if epoch % 100 == 0:\n#                 # Save Model\n#                 save_path = saver.save(sess, save_model_path)\n\n        # Save Model\n        save_path = saver.save(sess, save_model_path)\n    print("  done")\n\n\n# 全部実行\nlearning_rates = [0.001, 0.0001]\nfor learning_rate in learning_rates:\n    for use_two_fully in [False, True]:\n        for use_two_conv in [False, True]:\n            params_s = param_string(learning_rate, use_two_conv, use_two_fully)\n            print(\'Starting train: {}\'.format(params_s))\n            %time train(learning_rate, use_two_conv, use_two_fully, params_s)\n\nprint("All done")\nprint(\'run `tensorboard --logdir={}` to see the results.\'.format(LOGDIR))')
 
 
 # # Checkpoint
@@ -538,7 +580,7 @@ get_ipython().run_cell_magic('time', '', '"""\nDON\'T MODIFY ANYTHING IN THIS CE
 # ## Test Model
 # Test your model against the test dataset.  This will be your final accuracy. You should have an accuracy greater than 50%. If you don't, keep tweaking the model architecture and parameters.
 
-# In[158]:
+# In[18]:
 
 
 """
@@ -552,18 +594,24 @@ import pickle
 import gzip
 import helper
 import random
+import os.path
 
 
-save_model_path = './image_classification'
 n_samples = 4
 top_n_predictions = 3
 
-def test_model():
+
+def test_model(learning_rate, use_two_conv, use_two_fully, log_filename):
     """
     Test the saved model against the test dataset
     """
     with gzip.open('preprocess_test.p.gz', mode='rb') as file:
         test_features, test_labels = pickle.load(file)
+    
+    build_network(learning_rate, use_two_conv, use_two_fully)
+    
+    save_model_path = os.path.join(SAVE_MODEL, 'image_classification_' + log_filename)
+    #save_model_path = os.path.join(SAVE_MODEL, 'image_classification')
 
     loaded_graph = tf.Graph()
     
@@ -579,7 +627,7 @@ def test_model():
         loaded_y = loaded_graph.get_tensor_by_name('y:0')
         loaded_keep_prob = loaded_graph.get_tensor_by_name('keep_prob:0')
         loaded_logits = loaded_graph.get_tensor_by_name('logits:0')
-        loaded_acc = loaded_graph.get_tensor_by_name('accuracy:0')
+        loaded_acc = loaded_graph.get_tensor_by_name('accuracy/accuracy:0')
         
         # Get accuracy in batches for memory limitations
         test_batch_acc_total = 0
@@ -600,6 +648,12 @@ def test_model():
             feed_dict={loaded_x: random_test_features, loaded_y: random_test_labels, loaded_keep_prob: 1.0})
         helper.display_image_predictions(random_test_features, random_test_labels, random_test_predictions)
 
-
-test_model()
+learning_rates = [0.001, 0.0001]
+for learning_rate in learning_rates:
+    for use_two_fully in [False, True]:
+        for use_two_conv in [False, True]:
+            params_s = param_string(learning_rate, use_two_conv, use_two_fully)
+            print('Starting train: {}'.format(params_s))
+            
+            get_ipython().run_line_magic('time', 'test_model(learning_rate, use_two_conv, use_two_fully, params_s)')
 
