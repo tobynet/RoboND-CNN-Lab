@@ -1,5 +1,7 @@
 # TensorFlow Convolutional Neural Network Lab
 
+⇒ [📝 See Notebook](./CNN_lab.ipynb)
+
 [<img src="https://github.com/zalandoresearch/fashion-mnist/blob/master/doc/img/fashion-mnist-sprite.png" alt="Fashion-MNIST dataset samples" />](https://github.com/zalandoresearch/fashion-mnist/)
 
 We've prepared a Jupyter notebook that will guide you through the process of creating a convolutional neural network in TensorFlow.
